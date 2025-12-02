@@ -5,3 +5,14 @@ edition = "2024"
 
 [dependencies]
 clap = { version = "4.5.53", features = ["derive"] }
+
+[dev-dependencies]
+criterion = "0.8.0"
+
+[[bench]]
+name = "days"
+harness = false
+
+[[bench]]
+name = "bigboy"
+harness = false
