@@ -106,7 +106,7 @@ mod tests {
     fn test_part1() {
         assert_eq!(
             part1(fs::read_to_string("./input/4/real.txt").unwrap()),
-            "example"
+            "1411"
         );
     }
 
@@ -114,7 +114,7 @@ mod tests {
     fn test_part2() {
         assert_eq!(
             part2(fs::read_to_string("./input/4/real.txt").unwrap()),
-            "example2"
+            "8557"
         );
     }
 }
