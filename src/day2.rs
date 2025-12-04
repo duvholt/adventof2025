@@ -6,7 +6,7 @@ pub fn part1(contents: String) -> String {
 
         for i in first..=second {
             let len = i.to_string().len();
-            let chunk =  len / 2;
+            let chunk = len / 2;
             if len != chunk * 2 {
                 continue;
             }
@@ -28,13 +28,13 @@ fn parse(line: &str) -> (i64, i64) {
 
 fn equal_parts(first: i64, parts: usize) -> bool {
     if first < 10 {
-        return false
+        return false;
     }
     let first_s = first.to_string();
     let vec: Vec<_> = first_s.chars().collect();
     let mut chunks = vec.chunks(parts);
     let f1 = chunks.next().unwrap();
-    chunks.all(|f2| { f2 == f1})
+    chunks.all(|f2| f2 == f1)
 }
 
 pub fn part2(contents: String) -> String {
@@ -45,13 +45,12 @@ pub fn part2(contents: String) -> String {
 
         for i in first..=second {
             let len = i.to_string().len();
-            let chunk =  len / 2;
+            let chunk = len / 2;
             for c in 1..=chunk {
                 if equal_parts(i, c) {
                     eqs += i;
                     break;
                 }
-
             }
         }
     }
