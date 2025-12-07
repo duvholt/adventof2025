@@ -30,7 +30,7 @@ pub fn part1(contents: String) -> String {
 
 enum Operator {
     Sum,
-    Multiply
+    Multiply,
 }
 
 pub fn part2(contents: String) -> String {
@@ -69,7 +69,7 @@ pub fn part2(contents: String) -> String {
                 ' ' => {
                     whitespace += 1;
                     if whitespace == math_grid.len() {
-                       grand_total += do_math(&operator, &mut numbers);
+                        grand_total += do_math(&operator, &mut numbers);
                     }
                 }
                 num => {
