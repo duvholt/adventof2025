@@ -1,7 +1,5 @@
-use std::{
-    cmp::Ordering,
-    collections::{BinaryHeap, HashSet},
-};
+use gxhash::{HashSet, HashSetExt};
+use std::cmp::Ordering;
 
 type Point3 = (i64, i64, i64);
 
@@ -24,7 +22,7 @@ impl Eq for State {}
 // instead of a max-heap.
 impl Ord for State {
     fn cmp(&self, other: &Self) -> Ordering {
-        other.cost.total_cmp(&self.cost)
+        self.cost.total_cmp(&other.cost)
     }
 }
 
@@ -36,25 +34,17 @@ impl PartialOrd for State {
 
 pub fn part1(contents: String) -> String {
     let coordinates = parse(contents);
-    let mut heap = build_min_heap(&coordinates);
+    let edges = sorted_edge_lengths(&coordinates);
 
     let mut sets: Vec<HashSet<usize>> = Vec::new();
 
-    let mut iters = 0;
-
-    while let Some(State {
+    for State {
         cost: _cost,
         from,
         to,
-    }) = heap.pop()
+    } in edges.into_iter().take(1000)
     {
-        if iters >= 1000 {
-            // if iters >= 10 {
-            break;
-        }
-
         build_junctions(&mut sets, from, to);
-        iters += 1;
     }
 
     let mut max: Vec<u64> = sets.iter().map(|s| s.len() as u64).collect();
@@ -66,17 +56,17 @@ pub fn part1(contents: String) -> String {
 
 pub fn part2(contents: String) -> String {
     let coordinates = parse(contents);
-    let mut heap = build_min_heap(&coordinates);
+    let edges = sorted_edge_lengths(&coordinates);
 
-    let mut sets: Vec<HashSet<usize>> = Vec::new();
+    let mut sets: Vec<HashSet<usize>> = Vec::with_capacity(edges.len());
 
     let mut last_merged = None;
 
-    while let Some(State {
+    for State {
         cost: _cost,
         from,
         to,
-    }) = heap.pop()
+    } in edges.into_iter()
     {
         let work_done = build_junctions(&mut sets, from, to);
         if work_done {
@@ -89,22 +79,24 @@ pub fn part2(contents: String) -> String {
     (coordinates[i1].0 * coordinates[i2].0).to_string()
 }
 
-fn build_min_heap(coordinates: &[Point3]) -> BinaryHeap<State> {
-    let mut heap = BinaryHeap::new();
+#[inline(never)]
+fn sorted_edge_lengths(coordinates: &[Point3]) -> Vec<State> {
+    let mut state = Vec::with_capacity(coordinates.len());
 
     for (i1, c1) in coordinates.iter().enumerate() {
         for (i2, c2) in coordinates.iter().enumerate().skip(i1 + 1) {
             let euclid_dist = (((c1.0 - c2.0).pow(2) + (c1.1 - c2.1).pow(2) + (c1.2 - c2.2).pow(2))
                 as f64)
                 .sqrt();
-            heap.push(State {
+            state.push(State {
                 cost: euclid_dist,
                 from: i1,
                 to: i2,
             });
         }
     }
-    heap
+    state.sort_unstable();
+    state
 }
 
 fn parse(contents: String) -> Vec<Point3> {
