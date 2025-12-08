@@ -71,76 +71,72 @@ pub fn part1(contents: String) -> String {
 
     let mut iters = 0;
 
-    'outer: while let Some(State { cost, from, to }) = heap.pop() {
-        // if iters >= 1000 {
-        if iters >= 10 {
-            let mut orphan_from = true;
-            for set in sets.iter_mut() {
-                if set.contains(&from) {
-                    orphan_from = false;
-                    break;
-                }
-            }
-            if orphan_from {
-                sets.push(vec![from].into_iter().collect());
-            }
-
-            let mut orphan_to = true;
-            for set in sets.iter_mut() {
-                if set.contains(&to) {
-                    orphan_to = false;
-                    break;
-                }
-            }
-            if orphan_to {
-                sets.push(vec![to].into_iter().collect());
-            }
-            continue;
+    while let Some(State { cost, from, to }) = heap.pop() {
+        if iters >= 1000 {
+        // if iters >= 10 {
+            break;
         }
-        // dbg!(iters);
-        let mut inserted = false;
         println!(
             "Working on pair {:?}->{:?}",
             coordinates[from], coordinates[to]
         );
 
-        for set in sets.iter_mut() {
-            if set.contains(&from) && set.contains(&to) {
-                println!("ALREADY CONNECTED");
-                continue 'outer;
-            }
+        let mut from_set = None;
+        let mut to_set = None;
 
+        for (set_i, set) in sets.iter().enumerate() {
+            if from_set.is_some() && to_set.is_some() {
+                break;
+            }
             if set.contains(&from) {
+                from_set = Some(set_i);
+            }
+            if set.contains(&to) {
+                to_set = Some(set_i);
+            }
+        }
+
+        match (from_set, to_set) {
+            (None, None) => {
+                println!(
+                    "Brand new set with cost {} {:?}->{:?}",
+                    cost, coordinates[from], coordinates[to]
+                );
+                let mut s = HashSet::new();
+                s.insert(from);
+                s.insert(to);
+                sets.push(s);
+            }
+            (None, Some(i)) => {
+                let set = &mut sets[i];
+                set.insert(from);
+                let debug_set: Vec<_> = set.iter().map(|i| &coordinates[*i]).collect();
+                println!(
+                    "Updated to set with cost {} {:?} -> {:?}",
+                    cost, coordinates[from], debug_set
+                );
+            },
+            (Some(i), None) => {
+                let set = &mut sets[i];
                 set.insert(to);
-                inserted = true;
 
                 let debug_set: Vec<_> = set.iter().map(|i| &coordinates[*i]).collect();
                 println!(
                     "Updated from set with cost {} {:?} -> {:?}",
                     cost, coordinates[to], debug_set
                 );
-                break;
-            }
-            if set.contains(&to) {
-                set.insert(from);
-                inserted = true;
-                let debug_set: Vec<_> = set.iter().map(|i| &coordinates[*i]).collect();
-                println!(
-                    "Updated to set with cost {} {:?} -> {:?}",
-                    cost, coordinates[from], debug_set
-                );
-                break;
-            }
-        }
-        if !inserted {
-            println!(
-                "Brand new set with cost {} {:?}->{:?}",
-                cost, coordinates[from], coordinates[to]
-            );
-            let mut s = HashSet::new();
-            s.insert(from);
-            s.insert(to);
-            sets.push(s);
+            },
+            (Some(i1), Some(i2)) => {
+                if i1 == i2 {
+                    println!("ALREADY CONNECTED");
+                } else {
+                    println!("MERGE CONNECTED");
+                    let set2 = sets[i2].clone();
+                    let set1 = &mut sets[i1];
+                    set1.extend(set2.into_iter());
+                    sets.remove(i2);
+                }
+            },
         }
 
         iters += 1;
@@ -150,14 +146,14 @@ pub fn part1(contents: String) -> String {
     max.sort();
     max.reverse();
 
-    // dbg!(&sets);
+    // // dbg!(&sets);
 
-    for s in sets.iter() {
-        println!("New set!");
-        for i in s.iter() {
-            println!("{:?}", coordinates[*i]);
-        }
-    }
+    // for s in sets.iter() {
+    //     println!("New set!");
+    //     for i in s.iter() {
+    //         println!("{:?}", coordinates[*i]);
+    //     }
+    // }
 
     (max[0] * max[1] * max[2]).to_string()
 }
