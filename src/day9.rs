@@ -117,7 +117,7 @@ pub fn part2(contents: String) -> String {
         }
     }
 
-    // print_map(red_tiles, green_tiles, rect);
+    print_map(red_tiles, green_tiles, rect);
 
     max_area.to_string()
 }
@@ -130,22 +130,13 @@ fn check_no_gaps(
 ) -> bool {
     let mut start = true;
     let mut hole_y = true;
-    let mut possible_overlap = false;
+    let mut possible_overlap = None;
     match green_tiles_by_x.get(&x) {
         Some(gy) => {
             for i in 0..gy.len() - 1 {
                 let gy1 = gy[i];
                 let gy2 = gy[i + 1];
                 let gap = gy1 + 1 != gy2;
-
-                let oob =  (i == gy.len() - 2 && gy2 < max_y);
-                if possible_overlap && gy2 >= max_y {
-                    // println!(
-                    //     "From possible to complete! x={}, {}-{} ({}-{})",
-                    //     x, gy1, gy2, min_y, max_y
-                    // );
-                    return true;
-                }
 
                 if start {
                     hole_y = false;
@@ -154,21 +145,29 @@ fn check_no_gaps(
                     hole_y = !hole_y;
                 }
 
-                if possible_overlap && ((gap && hole_y) || oob) {
-                    // println!(
-                    //     "Possible but no cigar! x={}, {}-{} ({}-{}) gap={} oob={}",
-                    //     x, gy1, gy2, min_y, max_y, gap, oob
-                    // );
-                    return false;
+                if gap {
+                    possible_overlap = None;
                 }
 
-                let overlaps = min_y <= gy1 && max_y <= gy2;
-                if !hole_y && gy1 <= min_y {
+
+                if !hole_y && !gap && gy1 <= min_y {
                     // println!(
                     //     "Possible start! x={}, {}-{} ({}-{})",
                     //     x, gy1, gy2, min_y, max_y
                     // );
-                    possible_overlap = true;
+                    if possible_overlap.is_none() {
+                        possible_overlap = Some(gy1);
+                    }
+                }
+
+                if let Some(first_overlap) = possible_overlap && gy2 >= max_y {
+                    if first_overlap <= gy1 {
+                        // println!(
+                        //     "From possible to complete! x={}, {}-{} ({}-{})",
+                        //     x, gy1, gy2, min_y, max_y
+                        // );
+                        return true;
+                    }
                 }
 
                 if !hole_y && gy1 <= min_y && gy2 >= max_y {
@@ -178,25 +177,6 @@ fn check_no_gaps(
                     // );
                     return true;
                 }
-
-                // if gap {
-                //     hole_y = !hole_y;
-                //     if x == 3 {
-                //         println!("[hole={}, gap={}] Checking for hole x={} y={}-{}", hole_y, gap, x, gy1, gy2);
-                //     }
-                //     // hole overlapping area
-
-                //     if hole_y  && overlaps {
-                //         if min_y == gy2 || max_y == gy1 {}
-                //         else {
-                //             continue 'tile;
-                //         }
-                //     }
-                // } else {
-                //     if x == 3 {
-                //         println!("No gap {}, {}-{}", x, gy1, gy2);
-                //     }
-                // }
             }
         }
         None => {
