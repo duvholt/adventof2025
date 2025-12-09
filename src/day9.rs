@@ -87,28 +87,29 @@ pub fn part2(contents: String) -> String {
         }
     }
 
-    let mut green_tiles_by_x: HashMap<i64, Vec<(i64, AxisDirection)>> = HashMap::new();
-    let mut green_tiles_by_y: HashMap<i64, Vec<(i64, AxisDirection)>> = HashMap::new();
+    let mut green_tiles_by_x: HashMap<i64, Vec<(i64, Fill)>> = HashMap::new();
+    let mut green_tiles_by_y: HashMap<i64, Vec<(i64, Fill)>> = HashMap::new();
     // dbg!(&green_tiles);
     for &((gx, gy), corner) in green_tiles.iter() {
         let mut y_edge = match corner {
-            Corner::UpperLeft => AxisDirection::Right,
-            Corner::LowerLeft => AxisDirection::Right,
-            Corner::UpperRight => AxisDirection::Left,
-            Corner::LowerRight => AxisDirection::Left,
-            Corner::Edge => AxisDirection::Edge,
+            Corner::UpperLeft => Fill::Left,
+            Corner::LowerLeft => Fill::Right,
+            Corner::UpperRight => Fill::Left,
+            Corner::LowerRight => Fill::Left,
+            Corner::Edge => Fill::Left,
         };
         green_tiles_by_x
             .entry(gx)
             .and_modify(|v| v.push((gy, y_edge)))
             .or_insert_with(|| vec![(gy, y_edge)]);
 
+        // todo: not implemented
         let mut x_edge = match corner {
-            Corner::UpperLeft => AxisDirection::Right,
-            Corner::LowerLeft => AxisDirection::Left,
-            Corner::UpperRight => AxisDirection::Right,
-            Corner::LowerRight => AxisDirection::Left,
-            Corner::Edge => AxisDirection::Edge,
+            Corner::UpperLeft => Fill::Left,
+            Corner::LowerLeft => Fill::Left,
+            Corner::UpperRight => Fill::Left,
+            Corner::LowerRight => Fill::Left,
+            Corner::Edge => Fill::Left,
         };
         green_tiles_by_y
             .entry(gy)
@@ -215,17 +216,16 @@ enum Corner {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
-enum AxisDirection {
+enum Fill {
     Left,
     Right,
-    Edge,
 }
 
 fn check_no_gaps(
     x: i64,
     min_y: i64,
     max_y: i64,
-    green_tiles_by_x: &HashMap<i64, Vec<(i64, AxisDirection)>>,
+    green_tiles_by_x: &HashMap<i64, Vec<(i64, Fill)>>,
 ) -> bool {
     let mut start = true;
     let mut hole_y = true;
