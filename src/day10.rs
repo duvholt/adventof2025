@@ -1,5 +1,6 @@
 use std::collections::VecDeque;
 
+use itertools::Itertools;
 use regex::Regex;
 
 #[derive(Debug)]
@@ -73,11 +74,11 @@ struct State2 {
 pub fn part2(contents: String) -> String {
     let machines = parse(contents);
 
-    let mut button_presses = 0;
+    let mut total_button_presses = 0;
 
     for (i, machine) in machines.iter().enumerate() {
         println!("Initial state {:?} [{}/{}]", machine, i + 1, machines.len());
-        let mut queue = Vec::new();
+        // let mut queue = Vec::new();
 
         // check if all lights are already on
         if machine.lights.iter().all(|v| !*v) {
@@ -85,40 +86,45 @@ pub fn part2(contents: String) -> String {
             continue;
         }
 
+        let mut actions = Vec::new();
+
         for (button_i, button) in machine.buttons.iter().enumerate() {
-            queue.push(State2 {
-                total: 1,
-                last_button: button_i,
-                joltage: switch_joltage(vec![0; machine.lights.len()], button),
-            });
+            let mut joltage = vec![0; machine.lights.len()];
+
+            'action: loop {
+                joltage = switch_joltage(joltage, button);
+                for (i, jolt) in joltage.iter().enumerate() {
+                    if *jolt > machine.joltage[i] {
+                        break 'action;
+                    }
+                }
+                actions.push(button_i);
+            }
         }
 
-        'state: while let Some(state) = queue.pop() {
-
-            // println!("wtf {:?} {}", state, queue.len());
-            if state.joltage == machine.joltage {
-                println!("Solution found {}", state.total);
-                button_presses += state.total;
-                break;
-            }
-
-            for (i, jolt) in state.joltage.iter().enumerate() {
-                if *jolt > machine.joltage[i] {
-                    continue 'state;
+        'presses: for button_presses in 1.. {
+            println!("Checking {}", button_presses);
+            'combination: for selection in actions.iter().combinations(button_presses) {
+                let mut joltage = vec![0; machine.lights.len()];
+                for action in selection {
+                    let button = &machine.buttons[*action];
+                    joltage = switch_joltage(joltage, button);
+                    if joltage == machine.joltage {
+                        println!("Solution found {}", button_presses);
+                        total_button_presses += button_presses;
+                        break 'presses;
+                    }
+                    for (i, jolt) in joltage.iter().enumerate() {
+                        if *jolt > machine.joltage[i] {
+                            continue 'combination;
+                        }
+                    }
                 }
-            }
-
-            for (button_i, button) in machine.buttons.iter().enumerate() {
-                queue.push(State2 {
-                    total: state.total + 1,
-                    last_button: button_i,
-                    joltage: switch_joltage(state.joltage.clone(), button),
-                });
             }
         }
     }
 
-    button_presses.to_string()
+    total_button_presses.to_string()
 }
 
 fn parse(contents: String) -> Vec<Machine> {
