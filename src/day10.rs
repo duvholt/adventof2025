@@ -1,6 +1,5 @@
-use rayon::prelude::*;
 use std::{
-    collections::{HashSet, VecDeque},
+    collections::{VecDeque},
     vec,
 };
 
@@ -79,7 +78,7 @@ pub fn part2(contents: String) -> String {
 
 
     let button_presses: u64 = machines
-        .par_iter()
+        .iter()
         .enumerate()
         .map(|(i, machine)| run_machine(machine, i, machines.len())).sum();
 
@@ -96,12 +95,12 @@ fn run_machine(machine: &Machine, i: usize, length: usize) -> u64 {
         return 0;
     }
 
-    let mut states: HashSet<Vec<usize>> = HashSet::new();
-    states.insert(vec![0; machine.lights.len()]);
+    let mut states: Vec<Vec<usize>> = Vec::new();
+    states.push(vec![0; machine.lights.len()]);
     let mut presses = 0;
     'solution: loop {
         presses += 1;
-        let mut new_states = HashSet::with_capacity(states.len());
+        let mut new_states = Vec::with_capacity(states.len());
 
         'button: for button in machine.buttons.iter() {
             'state: for state_joltage in states.iter() {
@@ -115,13 +114,59 @@ fn run_machine(machine: &Machine, i: usize, length: usize) -> u64 {
                         continue 'state;
                     }
                 }
-                new_states.insert(new_joltage);
+                new_states.push(new_joltage);
             }
         }
-        states = new_states;
+        let non_dominated = find_non_dominated(new_states);
+
+        states = non_dominated;
         // println!("State {:?}", states);
         println!("States {:?} with {} presses", states.len(), presses);
     }
+}
+
+
+pub fn find_non_dominated(solutions: Vec<Vec<usize>>) -> Vec<Vec<usize>>
+{
+    let l = solutions[0].len();
+    find_non_dominated_n_objectives(solutions, l)
+}
+
+pub fn dominates_inverted_objectives(a: &Vec<usize>, b: &Vec<usize>, objectives: usize) -> bool {
+    let mut equal = true;
+    for i in 0..objectives {
+        if a[i] < b[i] {
+            return false;
+        } else if a[i] > b[i] {
+            equal = false;
+        }
+    }
+    !equal
+}
+
+pub fn find_non_dominated_n_objectives(
+    solutions: Vec<Vec<usize>>,
+    objectives: usize,
+) -> Vec<Vec<usize>>
+{
+    let mut non_dominated: Vec<Vec<usize>> = Vec::with_capacity(solutions.len());
+    for p in solutions {
+        let mut dominated = false;
+        non_dominated.retain(|q| {
+            if &p == q {
+                return false;
+            } else if dominates_inverted_objectives(&p, q, objectives) {
+                return false;
+            } else if !dominated && dominates_inverted_objectives(q, &p, objectives) {
+                dominated = true;
+            }
+            true
+        });
+        if !dominated {
+            non_dominated.push(p);
+        }
+    }
+    non_dominated
 }
 
 fn parse(contents: String) -> Vec<Machine> {
