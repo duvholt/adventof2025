@@ -66,6 +66,7 @@ fn switch_lights(mut lights: Vec<bool>, button: &[usize]) -> Vec<bool> {
 #[derive(Debug)]
 struct State2 {
     total: usize,
+    last_button: usize,
     joltage: Vec<usize>,
 }
 
@@ -76,7 +77,7 @@ pub fn part2(contents: String) -> String {
 
     for (i, machine) in machines.iter().enumerate() {
         println!("Initial state {:?} [{}/{}]", machine, i + 1, machines.len());
-        let mut queue = VecDeque::new();
+        let mut queue = Vec::new();
 
         // check if all lights are already on
         if machine.lights.iter().all(|v| !*v) {
@@ -84,14 +85,17 @@ pub fn part2(contents: String) -> String {
             continue;
         }
 
-        for button in machine.buttons.iter() {
-            queue.push_back(State2 {
+        for (button_i, button) in machine.buttons.iter().enumerate() {
+            queue.push(State2 {
                 total: 1,
+                last_button: button_i,
                 joltage: switch_joltage(vec![0; machine.lights.len()], button),
             });
         }
 
-        while let Some(state) = queue.pop_front() {
+        'state: while let Some(state) = queue.pop() {
+
+            // println!("wtf {:?} {}", state, queue.len());
             if state.joltage == machine.joltage {
                 println!("Solution found {}", state.total);
                 button_presses += state.total;
@@ -100,14 +104,14 @@ pub fn part2(contents: String) -> String {
 
             for (i, jolt) in state.joltage.iter().enumerate() {
                 if *jolt > machine.joltage[i] {
-                    // overload
-                    continue;
+                    continue 'state;
                 }
             }
 
-            for button in machine.buttons.iter() {
-                queue.push_back(State2 {
+            for (button_i, button) in machine.buttons.iter().enumerate() {
+                queue.push(State2 {
                     total: state.total + 1,
+                    last_button: button_i,
                     joltage: switch_joltage(state.joltage.clone(), button),
                 });
             }
