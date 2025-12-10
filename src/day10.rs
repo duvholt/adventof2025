@@ -1,7 +1,5 @@
-use std::{
-    collections::{VecDeque},
-    vec,
-};
+use rayon::prelude::*;
+use std::{collections::VecDeque, vec};
 
 use regex::Regex;
 
@@ -76,29 +74,30 @@ struct State2 {
 pub fn part2(contents: String) -> String {
     let machines = parse(contents);
 
-
     let button_presses: u64 = machines
-        .iter()
+        .par_iter()
         .enumerate()
-        .map(|(i, machine)| run_machine(machine, i, machines.len())).sum();
+        .map(|(i, machine)| run_machine(machine, i, machines.len()))
+        .sum();
 
     button_presses.to_string()
 }
 
 fn run_machine(machine: &Machine, i: usize, length: usize) -> u64 {
     println!("Initial state {:?} [{}/{}]", machine, i + 1, length);
-    // let mut queue = VecDeque::new();
-
-    // check if all lights are already on
-    if machine.lights.iter().all(|v| !*v) {
-        println!("all lights are good");
-        return 0;
-    }
 
     let mut states: Vec<Vec<usize>> = Vec::new();
-    states.push(vec![0; machine.lights.len()]);
+    let start = vec![0; machine.joltage.len()];
+
+    if machine.joltage == start {
+        println!("joltage good from beginning");
+        return 0;
+    }
+    states.push(start);
+
     let mut presses = 0;
-    let objectives = machine.lights.len();
+    let objectives = machine.joltage.len();
+
     'solution: loop {
         presses += 1;
         let mut non_dominated: Vec<Vec<usize>> = Vec::with_capacity(states.len());
@@ -123,7 +122,10 @@ fn run_machine(machine: &Machine, i: usize, length: usize) -> u64 {
                         dominated = true;
                         break;
                     } else if dominates_inverted_objectives(&p, q, objectives) {
-                        non_dominated.swap_remove(q_i);
+                        if p.iter().enumerate().all(|(i, p1)| *p1 < machine.joltage[i]) {
+                            // make sure to keep states that are next to the goal
+                            non_dominated.swap_remove(q_i);
+                        }
                     } else if !dominated && dominates_inverted_objectives(q, &p, objectives) {
                         dominated = true;
                         break;
@@ -132,8 +134,11 @@ fn run_machine(machine: &Machine, i: usize, length: usize) -> u64 {
                 if !dominated {
                     non_dominated.push(p);
                 }
-
             }
+        }
+
+        if non_dominated.is_empty() {
+            panic!("Broken! {states:?}");
         }
 
         states = non_dominated;
