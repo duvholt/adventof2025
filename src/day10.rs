@@ -6,6 +6,7 @@ use regex::Regex;
 struct Machine {
     lights: Vec<bool>,
     buttons: Vec<Vec<usize>>,
+    joltage: Vec<usize>,
 }
 
 #[derive(Debug)]
@@ -15,26 +16,7 @@ struct State {
 }
 
 pub fn part1(contents: String) -> String {
-    let re = Regex::new(r"\[(.*)\] ([\d|\(|\)\s,]+) (\{[\d,]+\})").unwrap();
-    let machines: Vec<_> = contents
-        .lines()
-        .map(|line| {
-            let (_, [lights, buttons, voltage]) = re.captures(line).map(|c| c.extract()).unwrap();
-
-            dbg!(lights, buttons, voltage);
-            Machine {
-                lights: lights.chars().map(|v| v == '#').collect(),
-                buttons: buttons
-                    .split_ascii_whitespace()
-                    .map(|button| {
-                        let button = button.strip_prefix("(").unwrap().strip_suffix(")").unwrap();
-
-                        button.split(",").map(|v| v.parse().unwrap()).collect()
-                    })
-                    .collect(),
-            }
-        })
-        .collect();
+    let machines = parse(contents);
 
     let mut button_presses = 0;
 
@@ -81,8 +63,96 @@ fn switch_lights(mut lights: Vec<bool>, button: &[usize]) -> Vec<bool> {
     lights
 }
 
-pub fn part2(_contents: String) -> String {
-    "example2".to_string()
+#[derive(Debug)]
+struct State2 {
+    total: usize,
+    joltage: Vec<usize>,
+}
+
+pub fn part2(contents: String) -> String {
+    let machines = parse(contents);
+
+    let mut button_presses = 0;
+
+    for (i, machine) in machines.iter().enumerate() {
+        println!("Initial state {:?} [{}/{}]", machine, i + 1, machines.len());
+        let mut queue = VecDeque::new();
+
+        // check if all lights are already on
+        if machine.lights.iter().all(|v| !*v) {
+            println!("all lights are good");
+            continue;
+        }
+
+        for button in machine.buttons.iter() {
+            queue.push_back(State2 {
+                total: 1,
+                joltage: switch_joltage(vec![0; machine.lights.len()], button),
+            });
+        }
+
+        while let Some(state) = queue.pop_front() {
+            if state.joltage == machine.joltage {
+                println!("Solution found {}", state.total);
+                button_presses += state.total;
+                break;
+            }
+
+            for (i, jolt) in state.joltage.iter().enumerate() {
+                if *jolt > machine.joltage[i] {
+                    // overload
+                    continue;
+                }
+            }
+
+            for button in machine.buttons.iter() {
+                queue.push_back(State2 {
+                    total: state.total + 1,
+                    joltage: switch_joltage(state.joltage.clone(), button),
+                });
+            }
+        }
+    }
+
+    button_presses.to_string()
+}
+
+fn parse(contents: String) -> Vec<Machine> {
+    let re = Regex::new(r"\[(.*)\] ([\d|\(|\)\s,]+) (\{[\d,]+\})").unwrap();
+    let machines: Vec<_> = contents
+        .lines()
+        .map(|line| {
+            let (_, [lights, buttons, joltage]) = re.captures(line).map(|c| c.extract()).unwrap();
+
+            Machine {
+                lights: lights.chars().map(|v| v == '#').collect(),
+                buttons: buttons
+                    .split_ascii_whitespace()
+                    .map(|button| {
+                        let button = button.strip_prefix("(").unwrap().strip_suffix(")").unwrap();
+
+                        button.split(",").map(|v| v.parse().unwrap()).collect()
+                    })
+                    .collect(),
+                joltage: {
+                    let joltage = joltage
+                        .strip_prefix("{")
+                        .unwrap()
+                        .strip_suffix("}")
+                        .unwrap();
+                    joltage.split(",").map(|v| v.parse().unwrap()).collect()
+                },
+            }
+        })
+        .collect();
+    machines
+}
+
+fn switch_joltage(mut joltage: Vec<usize>, button: &[usize]) -> Vec<usize> {
+    for &b in button {
+        joltage[b] += 1;
+    }
+    joltage
 }
 
 #[cfg(test)]
