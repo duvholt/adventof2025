@@ -1,4 +1,8 @@
-use std::collections::VecDeque;
+use rayon::prelude::*;
+use std::{
+    collections::{HashSet, VecDeque},
+    vec,
+};
 
 use regex::Regex;
 
@@ -73,52 +77,51 @@ struct State2 {
 pub fn part2(contents: String) -> String {
     let machines = parse(contents);
 
-    let mut button_presses = 0;
 
-    for (i, machine) in machines.iter().enumerate() {
-        println!("Initial state {:?} [{}/{}]", machine, i + 1, machines.len());
-        let mut queue = Vec::new();
-
-        // check if all lights are already on
-        if machine.lights.iter().all(|v| !*v) {
-            println!("all lights are good");
-            continue;
-        }
-
-        for (button_i, button) in machine.buttons.iter().enumerate() {
-            queue.push(State2 {
-                total: 1,
-                last_button: button_i,
-                joltage: switch_joltage(vec![0; machine.lights.len()], button),
-            });
-        }
-
-        'state: while let Some(state) = queue.pop() {
-
-            // println!("wtf {:?} {}", state, queue.len());
-            if state.joltage == machine.joltage {
-                println!("Solution found {}", state.total);
-                button_presses += state.total;
-                break;
-            }
-
-            for (i, jolt) in state.joltage.iter().enumerate() {
-                if *jolt > machine.joltage[i] {
-                    continue 'state;
-                }
-            }
-
-            for (button_i, button) in machine.buttons.iter().enumerate() {
-                queue.push(State2 {
-                    total: state.total + 1,
-                    last_button: button_i,
-                    joltage: switch_joltage(state.joltage.clone(), button),
-                });
-            }
-        }
-    }
+    let button_presses: u64 = machines
+        .par_iter()
+        .enumerate()
+        .map(|(i, machine)| run_machine(machine, i, machines.len())).sum();
 
     button_presses.to_string()
+}
+
+fn run_machine(machine: &Machine, i: usize, length: usize) -> u64 {
+    println!("Initial state {:?} [{}/{}]", machine, i + 1, length);
+    // let mut queue = VecDeque::new();
+
+    // check if all lights are already on
+    if machine.lights.iter().all(|v| !*v) {
+        println!("all lights are good");
+        return 0;
+    }
+
+    let mut states: HashSet<Vec<usize>> = HashSet::new();
+    states.insert(vec![0; machine.lights.len()]);
+    let mut presses = 0;
+    'solution: loop {
+        presses += 1;
+        let mut new_states = HashSet::with_capacity(states.len());
+
+        'button: for button in machine.buttons.iter() {
+            'state: for state_joltage in states.iter() {
+                let new_joltage = switch_joltage(state_joltage.clone(), button);
+                if new_joltage == machine.joltage {
+                    println!("Solution found {}", presses);
+                    return presses;
+                }
+                for (i, jolt) in new_joltage.iter().enumerate() {
+                    if *jolt > machine.joltage[i] {
+                        continue 'state;
+                    }
+                }
+                new_states.insert(new_joltage);
+            }
+        }
+        states = new_states;
+        // println!("State {:?}", states);
+        println!("States {:?} with {} presses", states.len(), presses);
+    }
 }
 
 fn parse(contents: String) -> Vec<Machine> {
