@@ -122,8 +122,16 @@ fn run_machine(machine: &Machine, i: usize, length: usize) -> u64 {
                         dominated = true;
                         break;
                     } else if dominates_inverted_objectives(&p, q, objectives) {
-                        let min_presses_left = p.iter().enumerate().map(|(i, p1)| machine.joltage[i] - p1).max().unwrap();
-                        if p.iter().enumerate().all(|(i, p1)| machine.joltage[i] - p1 >= min_presses_left) {
+                        let min_presses_left = p
+                            .iter()
+                            .enumerate()
+                            .map(|(i, p1)| machine.joltage[i] - p1)
+                            .max()
+                            .unwrap();
+                        if p.iter()
+                            .enumerate()
+                            .all(|(i, p1)| machine.joltage[i] - p1 >= min_presses_left)
+                        {
                             // make sure to keep states that are next to the goal
                             non_dominated.swap_remove(q_i);
                         }
@@ -144,7 +152,13 @@ fn run_machine(machine: &Machine, i: usize, length: usize) -> u64 {
 
         states = non_dominated;
         // println!("State {:?}", states);
-        println!("[{}/{}] States {:?} with {} presses", i + 1, length, states.len(), presses);
+        println!(
+            "[{}/{}] States {:?} with {} presses",
+            i + 1,
+            length,
+            states.len(),
+            presses
+        );
     }
 }
 
