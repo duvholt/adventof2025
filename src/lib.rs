@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 pub mod day1;
 pub mod day10;
+pub mod day11;
 pub mod day2;
 pub mod day3;
 pub mod day4;
@@ -18,6 +19,8 @@ pub fn day_tasks() -> HashMap<&'static str, Task> {
     let mut map: HashMap<&str, Task> = HashMap::new();
     map.insert("example-1", example::part1);
     map.insert("example-2", example::part2);
+    map.insert("11-1", day11::part1);
+    map.insert("11-2", day11::part2);
     map.insert("10-1", day10::part1);
     map.insert("10-2", day10::part2);
     map.insert("9-1", day9::part1);
