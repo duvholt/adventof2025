@@ -162,7 +162,7 @@ fn rotate_shapes(shape: Vec<(usize, usize)>) -> Vec<Vec<(usize, usize)>> {
 }
 
 struct State {
-    available_region: HashSet<(usize, usize)>,
+    available_region: Vec<Vec<bool>>,
     shapes_left: Vec<usize>,
     state_key: Vec<((usize, usize), (usize, usize))>,
 }
@@ -170,11 +170,13 @@ struct State {
 fn solve_region(region: &Region, shapes: &[Vec<Vec<(usize, usize)>>]) -> bool {
     // assumption: all shapes are 3x3
     let mut queue = VecDeque::new();
-    let mut start_region = HashSet::new();
-    for y in 0..region.height {
-        for x in 0..region.width {
-            start_region.insert((x, y));
+    let mut start_region = Vec::new();
+    for _y in 0..region.height {
+        let mut row = Vec::new();
+        for _x in 0..region.width {
+            row.push(true);
         }
+        start_region.push(row);
     }
 
     let mut region_shapes_left = Vec::new();
@@ -213,35 +215,28 @@ fn solve_region(region: &Region, shapes: &[Vec<Vec<(usize, usize)>>]) -> bool {
         let mut new_shapes_left = state.shapes_left.clone();
         let shape_i = new_shapes_left.pop().unwrap();
         for (alt_shape_i, alt_shape) in shapes[shape_i].iter().enumerate() {
-            if state.available_region.len() < alt_shape.len() {
-                continue;
-            }
             // try all possible positions
             // should be possible to optimize this
             for y in 0..region.height - 2 {
                 for x in 0..region.width - 2 {
                     let mut fit = true;
-                    let mut shape_positions = HashSet::new();
+                    // let mut shape_positions = Vec::new();
+                    let mut new_available_region = state.available_region.clone();
                     for shape_rel_position in alt_shape {
                         let shape_position =
                             (shape_rel_position.0 + x, shape_rel_position.1 + y);
-                        if !state.available_region.contains(&shape_position) {
+                        if !state.available_region[shape_position.1][shape_position.0] {
                             fit = false;
                             break;
                         }
-                        shape_positions.insert(shape_position);
+                        new_available_region[shape_position.1][shape_position.0] = false;
                     }
                     if fit {
-                        let available_region = state.available_region.clone();
-                        let available_region = available_region
-                            .difference(&shape_positions)
-                            .cloned()
-                            .collect();
                         let mut state_key = state.state_key.clone();
                         state_key.push(((shape_i, alt_shape_i), (x, y)));
                         state_key.sort();
                         queue.push_back(State {
-                            available_region,
+                            available_region: new_available_region,
                             shapes_left: new_shapes_left.clone(),
                             state_key,
                         });
@@ -270,7 +265,7 @@ fn print_state(region: &Region, state: &State) {
     for y in 0..region.height {
         let mut line = vec![];
         for x in 0..region.width {
-            let v = if state.available_region.contains(&(x, y)) {
+            let v = if state.available_region[y][x] {
                 '.'
             } else {
                 '#'
