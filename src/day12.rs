@@ -175,16 +175,22 @@ fn solve_region(region: &Region, shapes: &[Vec<Vec<(usize, usize)>>]) -> bool {
             start_region.insert((x, y));
         }
     }
+
+    let mut region_shapes_left = Vec::new();
+    for (shape_i, count) in region.shape_count.iter().enumerate() {
+        for _ in 0..*count {
+            region_shapes_left.push(shape_i);
+        }
+    }
     queue.push_back(State {
         available_region: start_region,
-        shapes_left: region.shape_count.clone(),
+        shapes_left: region_shapes_left,
     });
 
     let mut lowest_sum = usize::MAX;
-    let mut visited = HashSet::new();
 
     while let Some(state) = queue.pop_back() {
-        let sum = state.shapes_left.iter().sum::<usize>();
+        let sum = state.shapes_left.len();
         if sum < lowest_sum {
             print_state(region, &state);
             lowest_sum = sum;
@@ -194,55 +200,37 @@ fn solve_region(region: &Region, shapes: &[Vec<Vec<(usize, usize)>>]) -> bool {
             return true;
         }
 
-        let mut sorted_region: Vec<_> = state.available_region.iter().cloned().collect();
-        sorted_region.sort();
-        let visited_key = (state.shapes_left.clone(), sorted_region);
-        if visited.contains(&visited_key) {
-            continue;
-        }
-        visited.insert(visited_key);
-
-        // todo: check that shapes_left isn't negative
-        let missing_shapes: Vec<usize> = state
-            .shapes_left
-            .iter()
-            .enumerate()
-            .filter(|(_, v)| **v > 0)
-            .map(|(i, _)| i)
-            .collect();
-        for shape_i in missing_shapes {
-            for alt_shape in &shapes[shape_i] {
-                if state.available_region.len() < alt_shape.len() {
-                    continue;
-                }
-                // try all possible positions
-                // should be possible to optimize this
-                for y in 0..region.height {
-                    for x in 0..region.width {
-                        let mut fit = true;
-                        let mut shape_positions = HashSet::new();
-                        for shape_rel_position in alt_shape {
-                            let shape_position =
-                                (shape_rel_position.0 + x, shape_rel_position.1 + y);
-                            if !state.available_region.contains(&shape_position) {
-                                fit = false;
-                                break;
-                            }
-                            shape_positions.insert(shape_position);
+        let mut new_shapes_left = state.shapes_left.clone();
+        let shape_i = new_shapes_left.pop().unwrap();
+        for alt_shape in &shapes[shape_i] {
+            if state.available_region.len() < alt_shape.len() {
+                continue;
+            }
+            // try all possible positions
+            // should be possible to optimize this
+            for y in 0..region.height {
+                for x in 0..region.width {
+                    let mut fit = true;
+                    let mut shape_positions = HashSet::new();
+                    for shape_rel_position in alt_shape {
+                        let shape_position =
+                            (shape_rel_position.0 + x, shape_rel_position.1 + y);
+                        if !state.available_region.contains(&shape_position) {
+                            fit = false;
+                            break;
                         }
-                        if fit {
-                            let mut shapes_left = state.shapes_left.clone();
-                            shapes_left[shape_i] -= 1;
-                            let available_region = state.available_region.clone();
-                            let available_region = available_region
-                                .difference(&shape_positions)
-                                .cloned()
-                                .collect();
-                            queue.push_back(State {
-                                available_region,
-                                shapes_left,
-                            });
-                        }
+                        shape_positions.insert(shape_position);
+                    }
+                    if fit {
+                        let available_region = state.available_region.clone();
+                        let available_region = available_region
+                            .difference(&shape_positions)
+                            .cloned()
+                            .collect();
+                        queue.push_back(State {
+                            available_region,
+                            shapes_left: new_shapes_left.clone(),
+                        });
                     }
                 }
             }
