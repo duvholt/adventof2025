@@ -1,5 +1,6 @@
-use std::collections::{VecDeque};
 use gxhash::{HashMap, HashMapExt, HashSet, HashSetExt};
+use itertools::{Itertools, iproduct};
+use std::collections::VecDeque;
 
 #[derive(Debug)]
 struct Region {
@@ -116,10 +117,10 @@ pub fn part1(contents: String) -> String {
 
             rotated_shapes.dedup();
 
-            println!("After");
-            for r in rotated_shapes.iter() {
-                print_shape(r);
-            }
+            // println!("After");
+            // for r in rotated_shapes.iter() {
+            //     print_shape(r);
+            // }
 
             rotated_shapes
         })
@@ -131,6 +132,7 @@ pub fn part1(contents: String) -> String {
         if solve_region(region, &shapes) {
             sum += 1;
         }
+        // break;
     }
 
     sum.to_string()
@@ -169,7 +171,7 @@ struct State {
 
 fn solve_region(region: &Region, shapes: &[Vec<Vec<(usize, usize)>>]) -> bool {
     // assumption: all shapes are 3x3
-    let mut queue = VecDeque::new();
+    // let mut queue = VecDeque::new();
     let mut start_region = Vec::new();
     for _y in 0..region.height {
         let mut row = Vec::new();
@@ -179,74 +181,106 @@ fn solve_region(region: &Region, shapes: &[Vec<Vec<(usize, usize)>>]) -> bool {
         start_region.push(row);
     }
 
-    let mut region_shapes_left = Vec::new();
+    let mut all_region_shapes = Vec::new();
     for (shape_i, count) in region.shape_count.iter().enumerate() {
         for _ in 0..*count {
-            region_shapes_left.push(shape_i);
+            all_region_shapes.push(shape_i);
         }
     }
-    queue.push_back(State {
-        available_region: start_region,
-        shapes_left: region_shapes_left,
-        state_key: vec![],
-    });
 
-    let mut lowest_sum = usize::MAX;
-    let mut visited = HashSet::new();
+    println!("All region shapes: {}", all_region_shapes.len());
 
-    while let Some(state) = queue.pop_back() {
-        if visited.contains(&state.state_key) {
-            continue;
-        }
-        let sum = state.shapes_left.len();
-        if sum < lowest_sum {
-            print_state(region, &state);
-            lowest_sum = sum;
-        };
+    let shapes_permutations = all_region_shapes
+        .iter()
+        .cloned()
+        .permutations(all_region_shapes.len())
+        .unique();
+        // .collect();
 
-        if sum == 0 {
-            return true;
-        }
+    // let shapes_permutations: HashSet<_> = repeat_n(all_region_shapes
+    //     .iter()
+    //     .cloned())
+    //     .permutations(all_region_shapes.len())
+    //     .collect();
 
-        visited.insert(state.state_key.clone());
+    // let all_alt_permutations: Vec<_> = shapes.iter().multi_cartesian_product().collect();
 
+    for shapes_permutation in shapes_permutations {
+        let all_alt_permutations = shapes_permutation
+            .iter()
+            .enumerate()
+            .map(|(i, s)| &shapes[*s])
+            .multi_cartesian_product().unique();
 
+        'all: for shapes in all_alt_permutations {
+            let mut available_region = start_region.clone();
+            let mut start = (0, 0);
+            for (i, alt_shape) in shapes.iter().enumerate() {
+                // let alt_shape = alt_permutation[*shape_i];
 
-        let mut new_shapes_left = state.shapes_left.clone();
-        let shape_i = new_shapes_left.pop().unwrap();
-        for (alt_shape_i, alt_shape) in shapes[shape_i].iter().enumerate() {
-            // try all possible positions
-            // should be possible to optimize this
-            for y in 0..region.height - 2 {
-                for x in 0..region.width - 2 {
-                    let mut fit = true;
-                    // let mut shape_positions = Vec::new();
-                    let mut new_available_region = state.available_region.clone();
-                    for shape_rel_position in alt_shape {
-                        let shape_position =
-                            (shape_rel_position.0 + x, shape_rel_position.1 + y);
-                        if !state.available_region[shape_position.1][shape_position.0] {
-                            fit = false;
-                            break;
-                        }
-                        new_available_region[shape_position.1][shape_position.0] = false;
-                    }
-                    if fit {
-                        let mut state_key = state.state_key.clone();
-                        state_key.push(((shape_i, alt_shape_i), (x, y)));
-                        state_key.sort();
-                        queue.push_back(State {
-                            available_region: new_available_region,
-                            shapes_left: new_shapes_left.clone(),
-                            state_key,
-                        });
-                    }
+                let found = greedy_find_position(region, &available_region, &alt_shape, start);
+                if let Some((found)) = found {
+                    // println!("{i}: Found");
+                    // print_shape(alt_shape);
+                    // print_state(region, &found);
+                    available_region = found;
+                    // start = new_start;
+                } else {
+                    // println!("{i}: Not found");
+                    // print_shape(&alt_shape);
+                    // print_state(region, &available_region);
+
+                    // println!("Shape: {:?}", shapes_permutation);
+                    // println!("Alt: {:?}", alt_permutation);
+                    continue 'all;
                 }
             }
+            println!("{:?}", shapes_permutation);
+            println!("{:?}", shapes);
+            println!("Solution found!");
+            // let mut solution_region = start_region.clone();
+            // let mut start = (0, 0);
+            // for shape in shapes.iter() {
+            //     print_shape(&shape);
+            //     let (s) = greedy_find_position(region, &solution_region, &shape, start).unwrap();
+            //     solution_region = s;
+            //     // start = start2;
+            //     print_state(region, &solution_region);
+            // }
+            // println!();
+            print_state(region, &available_region);
+            
+            // return true;
         }
     }
 
     false
+}
+
+fn greedy_find_position(
+    region: &Region,
+    available_region: &Vec<Vec<bool>>,
+    shape: &Vec<(usize, usize)>,
+    start: (usize, usize),
+) -> Option<(Vec<Vec<bool>>)> {
+    for y in start.1..region.height - 2 {
+        for x in start.0..region.width - 2 {
+            let mut fit = true;
+            let mut new_available_region = available_region.clone();
+            for shape_rel_position in shape {
+                let shape_position = (shape_rel_position.0 + x, shape_rel_position.1 + y);
+                if !available_region[shape_position.1][shape_position.0] {
+                    fit = false;
+                    break;
+                }
+                new_available_region[shape_position.1][shape_position.0] = false;
+            }
+            if fit {
+                return Some((new_available_region));
+            }
+        }
+    }
+    None
 }
 
 fn print_shape(shape: &[(usize, usize)]) {
@@ -261,15 +295,23 @@ fn print_shape(shape: &[(usize, usize)]) {
     println!()
 }
 
-fn print_state(region: &Region, state: &State) {
+fn print_state(region: &Region, available_region: &Vec<Vec<bool>>) {
     for y in 0..region.height {
         let mut line = vec![];
         for x in 0..region.width {
-            let v = if state.available_region[y][x] {
-                '.'
-            } else {
-                '#'
-            };
+            let v = if available_region[y][x] { '.' } else { '#' };
+            line.push(v);
+        }
+        println!("{}", line.into_iter().collect::<String>())
+    }
+    println!()
+}
+
+fn print_state_with_numbers(region: &Region, available_region: &Vec<Vec<usize>>) {
+    for y in 0..region.height {
+        let mut line = vec![];
+        for x in 0..region.width {
+            let v = available_region[y][x].to_string();
             line.push(v);
         }
         println!("{}", line.into_iter().collect::<String>())
