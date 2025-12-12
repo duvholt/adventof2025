@@ -164,6 +164,7 @@ fn rotate_shapes(shape: Vec<(usize, usize)>) -> Vec<Vec<(usize, usize)>> {
 struct State {
     available_region: HashSet<(usize, usize)>,
     shapes_left: Vec<usize>,
+    state_key: Vec<((usize, usize), (usize, usize))>,
 }
 
 fn solve_region(region: &Region, shapes: &[Vec<Vec<(usize, usize)>>]) -> bool {
@@ -185,11 +186,16 @@ fn solve_region(region: &Region, shapes: &[Vec<Vec<(usize, usize)>>]) -> bool {
     queue.push_back(State {
         available_region: start_region,
         shapes_left: region_shapes_left,
+        state_key: vec![],
     });
 
     let mut lowest_sum = usize::MAX;
+    let mut visited = HashSet::new();
 
     while let Some(state) = queue.pop_back() {
+        if visited.contains(&state.state_key) {
+            continue;
+        }
         let sum = state.shapes_left.len();
         if sum < lowest_sum {
             print_state(region, &state);
@@ -200,16 +206,20 @@ fn solve_region(region: &Region, shapes: &[Vec<Vec<(usize, usize)>>]) -> bool {
             return true;
         }
 
+        visited.insert(state.state_key.clone());
+
+
+
         let mut new_shapes_left = state.shapes_left.clone();
         let shape_i = new_shapes_left.pop().unwrap();
-        for alt_shape in &shapes[shape_i] {
+        for (alt_shape_i, alt_shape) in shapes[shape_i].iter().enumerate() {
             if state.available_region.len() < alt_shape.len() {
                 continue;
             }
             // try all possible positions
             // should be possible to optimize this
-            for y in 0..region.height {
-                for x in 0..region.width {
+            for y in 0..region.height - 2 {
+                for x in 0..region.width - 2 {
                     let mut fit = true;
                     let mut shape_positions = HashSet::new();
                     for shape_rel_position in alt_shape {
@@ -227,9 +237,13 @@ fn solve_region(region: &Region, shapes: &[Vec<Vec<(usize, usize)>>]) -> bool {
                             .difference(&shape_positions)
                             .cloned()
                             .collect();
+                        let mut state_key = state.state_key.clone();
+                        state_key.push(((shape_i, alt_shape_i), (x, y)));
+                        state_key.sort();
                         queue.push_back(State {
                             available_region,
                             shapes_left: new_shapes_left.clone(),
+                            state_key,
                         });
                     }
                 }
