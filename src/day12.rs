@@ -1,4 +1,5 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{VecDeque};
+use gxhash::{HashMap, HashMapExt, HashSet, HashSetExt};
 
 #[derive(Debug)]
 struct Region {
@@ -12,7 +13,6 @@ type CoordinateShape = Vec<(usize, usize)>;
 
 pub fn part1(contents: String) -> String {
     let mut shapes: Vec<Vec<&str>> = Vec::new();
-    let mut read_shape = false;
     let mut regions = Vec::new();
     let mut shape = Vec::new();
     for line in contents.lines() {
@@ -133,7 +133,7 @@ pub fn part1(contents: String) -> String {
         }
     }
 
-    "example".to_string()
+    sum.to_string()
 }
 
 fn rotate_shapes(shape: Vec<(usize, usize)>) -> Vec<Vec<(usize, usize)>> {
@@ -162,24 +162,97 @@ fn rotate_shapes(shape: Vec<(usize, usize)>) -> Vec<Vec<(usize, usize)>> {
 }
 
 struct State {
-    filled_region: Vec<Vec<bool>>,
+    available_region: HashSet<(usize, usize)>,
     shapes_left: Vec<usize>,
 }
 
-fn solve_region(region: &Region, shapes: &Vec<Vec<Vec<(usize, usize)>>>) -> bool {
+fn solve_region(region: &Region, shapes: &[Vec<Vec<(usize, usize)>>]) -> bool {
     // assumption: all shapes are 3x3
     let mut queue = VecDeque::new();
+    let mut start_region = HashSet::new();
+    for y in 0..region.height {
+        for x in 0..region.width {
+            start_region.insert((x, y));
+        }
+    }
     queue.push_back(State {
-        filled_region: vec![vec![false; region.width]; region.height],
+        available_region: start_region,
         shapes_left: region.shape_count.clone(),
     });
 
-    while let Some(state) = queue.pop_front() {}
+    let mut lowest_sum = usize::MAX;
+    let mut visited = HashSet::new();
+
+    while let Some(state) = queue.pop_back() {
+        let sum = state.shapes_left.iter().sum::<usize>();
+        if sum < lowest_sum {
+            print_state(region, &state);
+            lowest_sum = sum;
+        };
+
+        if sum == 0 {
+            return true;
+        }
+
+        let mut sorted_region: Vec<_> = state.available_region.iter().cloned().collect();
+        sorted_region.sort();
+        let visited_key = (state.shapes_left.clone(), sorted_region);
+        if visited.contains(&visited_key) {
+            continue;
+        }
+        visited.insert(visited_key);
+
+        // todo: check that shapes_left isn't negative
+        let missing_shapes: Vec<usize> = state
+            .shapes_left
+            .iter()
+            .enumerate()
+            .filter(|(_, v)| **v > 0)
+            .map(|(i, _)| i)
+            .collect();
+        for shape_i in missing_shapes {
+            for alt_shape in &shapes[shape_i] {
+                if state.available_region.len() < alt_shape.len() {
+                    continue;
+                }
+                // try all possible positions
+                // should be possible to optimize this
+                for y in 0..region.height {
+                    for x in 0..region.width {
+                        let mut fit = true;
+                        let mut shape_positions = HashSet::new();
+                        for shape_rel_position in alt_shape {
+                            let shape_position =
+                                (shape_rel_position.0 + x, shape_rel_position.1 + y);
+                            if !state.available_region.contains(&shape_position) {
+                                fit = false;
+                                break;
+                            }
+                            shape_positions.insert(shape_position);
+                        }
+                        if fit {
+                            let mut shapes_left = state.shapes_left.clone();
+                            shapes_left[shape_i] -= 1;
+                            let available_region = state.available_region.clone();
+                            let available_region = available_region
+                                .difference(&shape_positions)
+                                .cloned()
+                                .collect();
+                            queue.push_back(State {
+                                available_region,
+                                shapes_left,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     false
 }
 
-fn print_shape(shape: &Vec<(usize, usize)>) {
+fn print_shape(shape: &[(usize, usize)]) {
     for y in 0..3 {
         let mut line = vec![];
         for x in 0..3 {
@@ -188,7 +261,23 @@ fn print_shape(shape: &Vec<(usize, usize)>) {
         }
         println!("{}", line.into_iter().collect::<String>())
     }
-    println!("")
+    println!()
+}
+
+fn print_state(region: &Region, state: &State) {
+    for y in 0..region.height {
+        let mut line = vec![];
+        for x in 0..region.width {
+            let v = if state.available_region.contains(&(x, y)) {
+                '.'
+            } else {
+                '#'
+            };
+            line.push(v);
+        }
+        println!("{}", line.into_iter().collect::<String>())
+    }
+    println!()
 }
 
 pub fn part2(_contents: String) -> String {
