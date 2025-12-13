@@ -117,11 +117,6 @@ pub fn part1(contents: String) -> String {
 
             rotated_shapes.dedup();
 
-            // println!("After");
-            // for r in rotated_shapes.iter() {
-            //     print_shape(r);
-            // }
-
             rotated_shapes
         })
         .collect();
@@ -132,7 +127,6 @@ pub fn part1(contents: String) -> String {
         if solve_region(region, &shapes) {
             sum += 1;
         }
-        // break;
     }
 
     sum.to_string()
@@ -171,7 +165,6 @@ struct State {
 
 fn solve_region(region: &Region, shapes: &[Vec<Vec<(usize, usize)>>]) -> bool {
     // assumption: all shapes are 3x3
-    // let mut queue = VecDeque::new();
     let mut start_region = Vec::new();
     for _y in 0..region.height {
         let mut row = Vec::new();
@@ -188,73 +181,20 @@ fn solve_region(region: &Region, shapes: &[Vec<Vec<(usize, usize)>>]) -> bool {
         }
     }
 
-    println!("All region shapes: {}", all_region_shapes.len());
+    let mut start = (0, 0);
+    let mut available_region = start_region;
 
-    let shapes_permutations = all_region_shapes
-        .iter()
-        .cloned()
-        .permutations(all_region_shapes.len())
-        .unique();
-        // .collect();
-
-    // let shapes_permutations: HashSet<_> = repeat_n(all_region_shapes
-    //     .iter()
-    //     .cloned())
-    //     .permutations(all_region_shapes.len())
-    //     .collect();
-
-    // let all_alt_permutations: Vec<_> = shapes.iter().multi_cartesian_product().collect();
-
-    for shapes_permutation in shapes_permutations {
-        let all_alt_permutations = shapes_permutation
-            .iter()
-            .enumerate()
-            .map(|(i, s)| &shapes[*s])
-            .multi_cartesian_product().unique();
-
-        'all: for shapes in all_alt_permutations {
-            let mut available_region = start_region.clone();
-            let mut start = (0, 0);
-            for (i, alt_shape) in shapes.iter().enumerate() {
-                // let alt_shape = alt_permutation[*shape_i];
-
-                let found = greedy_find_position(region, &available_region, &alt_shape, start);
-                if let Some((found)) = found {
-                    // println!("{i}: Found");
-                    // print_shape(alt_shape);
-                    // print_state(region, &found);
-                    available_region = found;
-                    // start = new_start;
-                } else {
-                    // println!("{i}: Not found");
-                    // print_shape(&alt_shape);
-                    // print_state(region, &available_region);
-
-                    // println!("Shape: {:?}", shapes_permutation);
-                    // println!("Alt: {:?}", alt_permutation);
-                    continue 'all;
-                }
-            }
-            println!("{:?}", shapes_permutation);
-            println!("{:?}", shapes);
-            println!("Solution found!");
-            // let mut solution_region = start_region.clone();
-            // let mut start = (0, 0);
-            // for shape in shapes.iter() {
-            //     print_shape(&shape);
-            //     let (s) = greedy_find_position(region, &solution_region, &shape, start).unwrap();
-            //     solution_region = s;
-            //     // start = start2;
-            //     print_state(region, &solution_region);
-            // }
-            // println!();
-            print_state(region, &available_region);
-            
-            // return true;
+    // greedy dumb solution
+    for shape_i in all_region_shapes {
+        let found = greedy_find_position(region, &available_region, &shapes[shape_i][0], start);
+        if let Some((found, new_start)) = found {
+            available_region = found;
+            start = new_start;
+        } else {
+            return false;
         }
     }
-
-    false
+    true
 }
 
 fn greedy_find_position(
@@ -262,9 +202,9 @@ fn greedy_find_position(
     available_region: &Vec<Vec<bool>>,
     shape: &Vec<(usize, usize)>,
     start: (usize, usize),
-) -> Option<(Vec<Vec<bool>>)> {
+) -> Option<(Vec<Vec<bool>>, (usize, usize))> {
     for y in start.1..region.height - 2 {
-        for x in start.0..region.width - 2 {
+        for x in 0..region.width - 2 {
             let mut fit = true;
             let mut new_available_region = available_region.clone();
             for shape_rel_position in shape {
@@ -276,13 +216,14 @@ fn greedy_find_position(
                 new_available_region[shape_position.1][shape_position.0] = false;
             }
             if fit {
-                return Some((new_available_region));
+                return Some((new_available_region, (x, y)));
             }
         }
     }
     None
 }
 
+#[allow(unused)]
 fn print_shape(shape: &[(usize, usize)]) {
     for y in 0..3 {
         let mut line = vec![];
@@ -295,23 +236,12 @@ fn print_shape(shape: &[(usize, usize)]) {
     println!()
 }
 
+#[allow(unused)]
 fn print_state(region: &Region, available_region: &Vec<Vec<bool>>) {
     for y in 0..region.height {
         let mut line = vec![];
         for x in 0..region.width {
             let v = if available_region[y][x] { '.' } else { '#' };
-            line.push(v);
-        }
-        println!("{}", line.into_iter().collect::<String>())
-    }
-    println!()
-}
-
-fn print_state_with_numbers(region: &Region, available_region: &Vec<Vec<usize>>) {
-    for y in 0..region.height {
-        let mut line = vec![];
-        for x in 0..region.width {
-            let v = available_region[y][x].to_string();
             line.push(v);
         }
         println!("{}", line.into_iter().collect::<String>())
