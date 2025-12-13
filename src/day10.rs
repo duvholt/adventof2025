@@ -160,15 +160,12 @@ fn gauss_machine(machine: &Machine, i: usize, length: usize) -> u64 {
     for (col, w) in where_v.iter().enumerate() {
         match w {
             Some(row) => {
-                let mut equation: Vec<(f64, Option<usize>)> = vec![(round_float(a[*row][m]), None)];
+                let mut equation: Vec<(f64, Option<usize>)> = vec![(a[*row][m], None)];
                 let mut f = false;
-                // println!("{:?}", &a[*row]);
                 for i in 0..m {
                     let v = a[*row][i];
-                    let fixed_v = round_float(v);
-
                     if !f {
-                        if fixed_v == 1.0 {
+                        if v == 1.0 {
                             // skip until pivot
                             f = true;
                         }
@@ -176,11 +173,9 @@ fn gauss_machine(machine: &Machine, i: usize, length: usize) -> u64 {
                         continue;
                     }
 
-                    // dbg!(i, v, fixed_v);
-
-                    if fixed_v != 0.0 && fixed_v != -0.0 {
+                    if v != 0.0 && v != -0.0 {
                         let free_index = *free_map.get(&i).unwrap();
-                        equation.push((-fixed_v, Some(free_index)));
+                        equation.push((-v, Some(free_index)));
                     }
                 }
                 equations.push(equation);
@@ -194,7 +189,7 @@ fn gauss_machine(machine: &Machine, i: usize, length: usize) -> u64 {
 
     // find minimal solution
 
-    let mut minimum = f64::MAX;
+    let mut minimum = usize::MAX;
 
     let max_joltage = machine.joltage.iter().max().unwrap();
 
@@ -213,49 +208,39 @@ fn gauss_machine(machine: &Machine, i: usize, length: usize) -> u64 {
                     None => *value,
                 })
                 .sum::<f64>();
-            // dbg!(&presses);
-            if presses < -1e-9 || (presses.round() - presses).abs() > 1e-9 {
+            let int_presses = presses.round() as i64;
+            if int_presses < 0 || (int_presses as f64 - presses).abs() > 1e-9 {
                 continue 'combi;
             }
-            button_presses.push(presses);
+            button_presses.push(int_presses as usize);
         }
-        let button_sum = button_presses.iter().sum::<f64>();
+        let button_sum = button_presses.iter().sum::<usize>();
         if button_sum < minimum {
-            minimum = round_float(button_sum);
-            if (minimum - button_sum).abs() > 1e-9 {
-                panic!("Float sum error");
-            }
+            minimum = button_sum;
             if button_presses.len() != machine.buttons.len() {
                 panic!("Wrong number of buttons");
             }
 
-            let mut joltage = vec![0; machine.joltage.len()];
-            for (button_i, button_press) in button_presses.iter().enumerate() {
-                let button_presses = round_float(*button_press) as usize;
-                for _ in 0..button_presses {
-                    joltage = switch_joltage(joltage, &machine.buttons[button_i]);
+            // verify solution
+            if false {
+                let mut joltage = vec![0; machine.joltage.len()];
+                for (button_i, button_press) in button_presses.iter().enumerate() {
+                    for _ in 0..*button_press {
+                        joltage = switch_joltage(joltage, &machine.buttons[button_i]);
+                    }
                 }
-            }
-            if joltage != machine.joltage {
-                panic!("WRONG JOLTAGE! {:?}, {:?}", joltage, machine.joltage);
+                if joltage != machine.joltage {
+                    panic!("WRONG JOLTAGE! {:?}, {:?}", joltage, machine.joltage);
+                }
             }
         }
     }
 
-    if minimum == f64::MAX {
+    if minimum == usize::MAX {
         panic!("BROKEN!!!!");
     }
 
     minimum as u64
-}
-
-fn round_float(v: f64) -> f64 {
-    let fixed_v = if (v - v.round()).abs() < 1e-9 {
-        v.round()
-    } else {
-        v
-    };
-    fixed_v
 }
 
 #[allow(unused)]
