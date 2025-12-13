@@ -79,9 +79,16 @@ pub fn part2(contents: String) -> String {
     button_presses.to_string()
 }
 
-fn gauss_machine(machine: &Machine, i: usize, length: usize) -> u64 {
-    println!("Initial state {:?} [{}/{}]", machine, i + 1, length);
 
+// Gauss-Jordan elimination
+fn gauss_machine(machine: &Machine, i: usize, length: usize) -> u64 {
+    if false {
+        println!("Initial state {:?} [{}/{}]", machine, i + 1, length);
+    }
+
+
+    // linear equations in the form of Ax = b
+    // converted to augmented matrix where m+1 is joltage
     let m = machine.buttons.len();
     let n = machine.joltage.len();
     let mut a: Vec<Vec<f64>> = vec![vec![0.0; m + 1]; n];
@@ -96,8 +103,10 @@ fn gauss_machine(machine: &Machine, i: usize, length: usize) -> u64 {
 
     let mut where_v: Vec<Option<usize>> = vec![None; m];
 
-    // print_matrix(&a);
+    const EPSILON: f64 = 1e-9;
 
+    // reduced row echelon form
+    // https://cp-algorithms.com/linear_algebra/linear-system-gauss.html
     let mut row: usize = 0;
     for col in 0..m {
         if row >= n {
@@ -109,40 +118,33 @@ fn gauss_machine(machine: &Machine, i: usize, length: usize) -> u64 {
                 sel = i;
             }
         }
-        if a[sel][col].abs() < f64::EPSILON {
+        if a[sel][col].abs() < EPSILON {
             continue;
         }
         // Row switching
-        for i in col..=m {
-            // swap
-            let tmp = a[sel][i];
-            a[sel][i] = a[row][i];
-            a[row][i] = tmp;
-        }
+        a.swap(sel, row);
+
         where_v[col] = Some(row);
 
-        // Row multiplation / reduction
+        // Row multiplication / reduction
         let c = a[row][col];
         for j in col..=m {
             a[row][j] /= c;
         }
-        // println!("Reduced");
-        // print_matrix(&a);
 
         // Row addition
         for i in 0..n {
             if i != row {
                 let c = a[i][col] / a[row][col];
-                // println!("c={c} i={i} row={row}");
                 for j in col..=m {
                     a[i][j] -= a[row][j] * c
                 }
             }
         }
-        // println!("Subbed");
-        // print_matrix(&a);
         row += 1;
     }
+
+    // find free variables
 
     let mut equations: Vec<Vec<(f64, Option<usize>)>> = vec![];
 
@@ -173,7 +175,7 @@ fn gauss_machine(machine: &Machine, i: usize, length: usize) -> u64 {
                         continue;
                     }
 
-                    if v != 0.0 && v != -0.0 {
+                    if v != 0.0 {
                         let free_index = *free_map.get(&i).unwrap();
                         equation.push((-v, Some(free_index)));
                     }
@@ -187,15 +189,15 @@ fn gauss_machine(machine: &Machine, i: usize, length: usize) -> u64 {
         }
     }
 
-    // find minimal solution
+    // find minimal solution by brute force
 
     let mut minimum = usize::MAX;
 
     let max_joltage = machine.joltage.iter().max().unwrap();
 
     let free_combi = free_map
-        .keys()
-        .map(|key| 0..=*max_joltage)
+        .iter()
+        .map(|_| 0..=*max_joltage)
         .multi_cartesian_product();
 
     'combi: for free_values in free_combi {
@@ -209,7 +211,7 @@ fn gauss_machine(machine: &Machine, i: usize, length: usize) -> u64 {
                 })
                 .sum::<f64>();
             let int_presses = presses.round() as i64;
-            if int_presses < 0 || (int_presses as f64 - presses).abs() > 1e-9 {
+            if int_presses < 0 || (int_presses as f64 - presses).abs() > EPSILON {
                 continue 'combi;
             }
             button_presses.push(int_presses as usize);
@@ -217,10 +219,6 @@ fn gauss_machine(machine: &Machine, i: usize, length: usize) -> u64 {
         let button_sum = button_presses.iter().sum::<usize>();
         if button_sum < minimum {
             minimum = button_sum;
-            if button_presses.len() != machine.buttons.len() {
-                panic!("Wrong number of buttons");
-            }
-
             // verify solution
             if false {
                 let mut joltage = vec![0; machine.joltage.len()];
@@ -237,7 +235,7 @@ fn gauss_machine(machine: &Machine, i: usize, length: usize) -> u64 {
     }
 
     if minimum == usize::MAX {
-        panic!("BROKEN!!!!");
+        panic!("No solution found");
     }
 
     minimum as u64
